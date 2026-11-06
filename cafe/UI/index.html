@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="uk">
+	<head>
+		<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Система Управління Кафе (C# Web API)</title>
+				<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+				<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+				<style>
+					:root {
+					--bg-main: #0f172a;
+					--bg-card: #1e293b;
+					--bg-card-hover: #334155;
+					--accent-blue: #38bdf8;
+					--accent-amber: #f59e0b;
+					--accent-green: #22c55e;
+					--accent-red: #ef4444;
+					--text-main: #f8fafc;
+					--text-muted: #94a3b8;
+					--border-color: #334155;
+					}
+
+					* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+					body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+					.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+					.auth-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 2.5rem; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+					.auth-card h2 { margin-bottom: 0.5rem; color: var(--accent-blue); text-align: center; font-size: 1.6rem; }
+					.auth-card p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; text-align: center; }
+
+					.form-group { margin-bottom: 1.2rem; }
+					.form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-muted); font-size: 0.85rem; }
+					.form-group input { width: 100%; padding: 0.75rem 1rem; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); outline: none; font-size: 1rem; }
+					.auth-btn { width: 100%; padding: 0.8rem; background: var(--accent-blue); color: #0f172a; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s; margin-top: 0.5rem; }
+
+					header { background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 1rem 5%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+					.logo { font-size: 1.4rem; font-weight: 700; letter-spacing: 1px; }
+					.logo span { color: var(--accent-blue); }
+					nav { display: flex; gap: 0.5rem; }
+					.nav-btn { background: transparent; border: none; color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.95rem; }
+					.nav-btn:hover, .nav-btn.active { color: var(--text-main); background-color: var(--bg-card-hover); }
+
+					.user-widget { display: flex; align-items: center; gap: 0.8rem; background: var(--bg-main); padding: 0.4rem 1rem; border-radius: 20px; border: 1px solid var(--border-color); }
+					.role-badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
+					.role-badge.admin { background: var(--accent-amber); color: #0f172a; }
+					.role-badge.user { background: var(--accent-blue); color: #0f172a; }
+					.btn-topup { background: var(--accent-green); color: #0f172a; border: none; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 700; font-size: 0.75rem; cursor: pointer; }
+					.btn-logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+
+					main { flex: 1; padding: 2rem 5%; max-width: 1300px; margin: 0 auto; width: 100%; }
+					.tab-content { display: none; }
+					.tab-content.active { display: block; }
+
+					.grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+					.card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; transition: 0.3s; position: relative; }
+					.card:hover { border-color: var(--accent-blue); }
+					.stat-val { font-size: 1.8rem; font-weight: 700; color: var(--accent-blue); margin-top: 0.5rem; }
+
+					#graphContainer { width: 100%; height: 320px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; margin-top: 1rem; }
+					table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); margin-top: 1rem; }
+					th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+					th { background: #1a2332; color: var(--text-muted); font-size: 0.85rem; }
+
+					.btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; }
+					.btn-primary { background: var(--accent-blue); color: #0f172a; }
+					.btn-danger { background: var(--accent-red); color: #fff; }
+					.input-inline { padding: 0.6rem 0.8rem; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; outline: none; }
+
+					.console-card { background: #020617; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; font-family: 'Consolas', monospace; font-size: 0.85rem; color: #38bdf8; max-height: 180px; overflow-y: auto; margin-top: 2rem; }
+					.log-entry { margin-bottom: 0.3rem; }
+				</style>
+			</head>
+	<body>
+
+		<div id="authModal" class="modal-overlay">
+			<div class="auth-card">
+				<h2>Авторизація C#</h2>
+				<p>Уведіть ім'я та початковий баланс.</p>
+				<div class="form-group">
+					<label>Ім'я користувача:</label>
+					<input type="text" id="usernameInput" value="Іван" placeholder="Ваше ім'я..." autofocus="">
+            </div>
+				<div class="form-group">
+					<label>Початковий баланс (грн):</label>
+					<input type="number" id="initialBalanceInput" value="300">
+            </div>
+				<button class="auth-btn" onclick="login()">Увійти</button>
+			</div>
+		</div>
+
+		<header>
+			<div class="logo">
+				COFFEE<span>NET</span> (C# Backend)
+			</div>
+			<nav id="navLinks">
+				<button class="nav-btn active" onclick="switchTab('home', event)">Головна</button>
+				<button class="nav-btn" onclick="switchTab('menu', event)">Меню кафе</button>
+				<button class="nav-btn" onclick="switchTab('orders', event)">Черга C#</button>
+				<button class="nav-btn" onclick="switchTab('analytics', event)">Граф та Аналітика</button>
+				<button class="nav-btn" id="adminTabBtn" style="display:none;" onclick="switchTab('admin', event)">Панель Адміна</button>
+			</nav>
+			<div class="user-widget">
+				<span id="userRoleBadge" class="role-badge user">Клієнт</span>
+				<span id="userNameDisp" style="font-weight: 600;">Гость</span>
+				<span style="color: var(--accent-green); font-weight:700;" id="userBalanceDisp">0 грн</span>
+				<button class="btn-topup" id="topupBtn" onclick="topupBalanceApi()">+ Поповнити</button>
+				<button class="btn-logout" onclick="logout()">Вийти</button>
+			</div>
+		</header>
+
+		<main>
+			<div id="home" class="tab-content active">
+				<div class="grid-cards">
+					<div class="card">
+						<h3>Загальна выручка (C# State)</h3>
+						<div class="stat-val" id="totalRevenue">0.00 грн</div>
+					</div>
+					<div class="card">
+						<h3>В черзі Queue&lt;Order&gt;</h3>
+						<div class="stat-val" id="activeOrdersCount">0</div>
+					</div>
+					<div class="card">
+						<h3>Всього замовлень</h3>
+						<div class="stat-val" id="totalOrdersCount">0</div>
+					</div>
+				</div>
+
+				<div class="card" style="margin-top: 1rem;">
+					<h3>Управління C# Навантажувальним Тестуванням</h3>
+					<p style="color: var(--text-muted); margin: 0.5rem 0 1rem 0;">Запуск модуля автоматичного тестування безпосередньо у C#.</p>
+					<button class="btn btn-primary" onclick="runBackendTests()">🧪 Запустити C# Авто-Тести</button>
+				</div>
+			</div>
+
+			<div id="menu" class="tab-content">
+				<h2 style="margin-bottom: 1rem;">Меню Кафе (з підтяжкою з C# ProductGraph)</h2>
+				<div class="grid-cards" id="menuContainer"></div>
+			</div>
+
+			<div id="orders" class="tab-content">
+				<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap:wrap; gap:1rem;">
+					<h2>Черга замовлень (Queue&lt;Order&gt; FIFO)</h2>
+					<button class="btn btn-primary" onclick="processNextOrderApi()">Обробити наступне замовлення в C#</button>
+				</div>
+				<table>
+					<thead>
+						<tr>
+							<th>Код</th>
+							<th>Клієнт</th>
+							<th>Товар</th>
+							<th>Ціна</th>
+							<th>Статус</th>
+						</tr>
+					</thead>
+					<tbody id="ordersTableBody"></tbody>
+				</table>
+			</div>
+
+			<div id="analytics" class="tab-content">
+				<h2 style="margin-bottom: 1rem;">Аналітика та Граф Зв'язків</h2>
+				<div class="card" style="margin-top: 1rem;">
+					<h3>🕸️ Візуалізація Графа Рекомендацій (C# ProductGraph)</h3>
+					<p style="color: var(--text-muted); margin-top: 0.3rem;">Абстрактна структура даних (Adjacency List) із бэкенда.</p>
+					<div id="graphContainer"></div>
+				</div>
+			</div>
+
+			<div id="admin" class="tab-content">
+				<h2 style="margin-bottom: 0.5rem;">⚙️ Панель Адміністратора</h2>
+				<div class="card" style="margin-bottom: 1.5rem; margin-top: 1rem;">
+					<h3>Пошук замовлень через C# API</h3>
+					<div style="display:flex; gap:1rem; margin-top:0.8rem;">
+						<input type="text" id="adminSearchInput" placeholder="Введіть ім'я..." class="input-inline" style="flex:1;">
+							<button class="btn btn-primary" onclick="adminSearchApi()">Шукати в C#</button>
+						</div>
+					<div id="searchResult" style="margin-top:1rem; color:var(--text-muted);"></div>
+				</div>
+				<div class="card">
+					<h3>Управління C# сервером</h3>
+					<button class="btn btn-danger" style="margin-top:0.8rem;" onclick="resetSystemApi()">Очистити стан C# бэкенда</button>
+				</div>
+			</div>
+
+			<div class="console-card">
+				<div style="color:var(--text-muted); margin-bottom:0.5rem; font-weight:700;">Журнал подій C# (SystemLogs):</div>
+				<div id="consoleLog"></div>
+			</div>
+		</main>
+
+		<script>
+			const API_URL = "http://localhost:5000/api";
+			let currentUser = { name: "Іван", isAdmin: false };
+			let networkGraph = null;
+
+			window.addEventListener('DOMContentLoaded', () => {
+			renderMenu();
+			initGraph();
+			updateDashboardFromApi();
+			setInterval(updateDashboardFromApi, 2000);
+			});
+
+			async function login() {
+			const name = document.getElementById('usernameInput').value.trim();
+			const initialBalance = parseFloat(document.getElementById('initialBalanceInput').value) || 0;
+
+			if (!name) return alert("Введіть ім'я!");
+
+			try {
+			const res = await fetch(`${API_URL}/auth/login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ customerName: name, initialBalance: initialBalance })
+			});
+
+			const data = await res.json();
+			if (data.success) {
+			currentUser.name = data.name;
+			currentUser.isAdmin = data.isAdmin;
+
+			applyUserSessionUI(data.name, data.balance, data.isAdmin);
+			document.getElementById('authModal').style.display = "none";
+			updateDashboardFromApi();
+			}
+			} catch (e) {
+			alert("Не вдалося з'єднатися з C# бэкендом!");
+			}
+			}
+
+			function applyUserSessionUI(name, balance, isAdmin) {
+			document.getElementById('userNameDisp').innerText = name;
+			document.getElementById('userBalanceDisp').innerText = isAdmin ? "∞ грн" : `${balance} грн`;
+
+			if (isAdmin) {
+			document.getElementById('adminTabBtn').style.display = "inline-block";
+			document.getElementById('userRoleBadge').className = "role-badge admin";
+			document.getElementById('userRoleBadge').innerText = "Адміністратор";
+			document.getElementById('topupBtn').style.display = "none";
+			} else {
+			document.getElementById('adminTabBtn').style.display = "none";
+			document.getElementById('userRoleBadge').className = "role-badge user";
+			document.getElementById('userRoleBadge').innerText = "Клієнт";
+			document.getElementById('topupBtn').style.display = "inline-block";
+			}
+			}
+
+			async function topupBalanceApi() {
+			const amountStr = prompt("Уведіть суму поповнення (грн):", "100");
+			if (!amountStr) return;
+			const amount = parseFloat(amountStr);
+
+			if (isNaN(amount) || amount <= 0) return alert("Введіть коректну суму!");
+
+			try {
+			const res = await fetch(`${API_URL}/user/topup`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ amount: amount })
+			});
+
+			const data = await res.json();
+			if (data.success) {
+			updateDashboardFromApi();
+			} else {
+			alert(data.message);
+			}
+			} catch (e) {
+			alert("Помилка поповнення рахунку!");
+			}
+			}
+
+			function logout() {
+			document.getElementById('authModal').style.display = "flex";
+			}
+
+			function switchTab(tabId, evt) {
+			document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+			document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+			document.getElementById(tabId).classList.add('active');
+			if (evt && evt.target) evt.target.classList.add('active');
+			}
+
+			async function renderMenu() {
+			try {
+			const response = await fetch(`${API_URL}/menu`);
+			const menuItems = await response.json();
+
+			const container = document.getElementById('menuContainer');
+			container.innerHTML = menuItems.map(item => {
+			const recsText = item.recommendations && item.recommendations.length
+			? `💡 Рекомендація з C# Графа: ${item.recommendations.join(', ')}`
+			: 'Немає рекомендацій';
+
+			return `
+			<div class="card">
+				<h3>${item.name}</h3>
+				<p style="color:var(--text-muted); margin:0.3rem 0; font-size:0.9rem;">Категорія: ${item.category}</p>
+				<p style="color:var(--accent-blue); font-size:0.85rem; margin-bottom:0.8rem; font-weight:600;">${recsText}</p>
+				<div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem;">
+					<span style="font-weight:700; color:var(--accent-amber); font-size:1.1rem;">${item.price} грн</span>
+					<button class="btn btn-primary" onclick="buyItem(${item.id})">Замовити</button>
+				</div>
+			</div>`;
+			}).join('');
+			} catch (e) {
+			console.error("C# сервер оффлайн");
+			}
+			}
+
+			async function buyItem(itemId) {
+			try {
+			const response = await fetch(`${API_URL}/orders`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+			customerName: currentUser.name,
+			menuItemId: itemId
+			})
+			});
+
+			const result = await response.json();
+			if (response.ok && result.success) {
+			updateDashboardFromApi();
+			} else {
+			alert(`[Помилка C#] ${result.message}`);
+			}
+			} catch (e) {
+			alert("Помилка з'єднання з C# бэкендом!");
+			}
+			}
+
+			async function processNextOrderApi() {
+			try {
+			const response = await fetch(`${API_URL}/orders/process`, { method: 'POST' });
+			const result = await response.json();
+			if (response.ok && result.success) {
+			updateDashboardFromApi();
+			} else {
+			alert(result.message);
+			}
+			} catch (e) {
+			alert("Помилка обробки замовлення в C#!");
+			}
+			}
+
+			async function updateDashboardFromApi() {
+			try {
+			const res = await fetch(`${API_URL}/status`);
+			if (!res.ok) return;
+			const data = await res.json();
+
+			document.getElementById('totalRevenue').innerText = `${data.revenue.toFixed(2)} грн`;
+			document.getElementById('activeOrdersCount').innerText = data.activeOrdersCount;
+			document.getElementById('totalOrdersCount').innerText = data.totalOrdersCount;
+
+			applyUserSessionUI(data.currentUserName, data.userBalance, data.isAdmin);
+
+			const tbody = document.getElementById('ordersTableBody');
+			tbody.innerHTML = data.queue.map(o => `
+			<tr>
+				<td style="font-family:monospace; font-weight:700;">${o.code}</td>
+				<td>${o.customerName}</td>
+				<td>${o.item.name}</td>
+				<td>${o.item.price} грн</td>
+				<td>
+					<span style="color:var(--accent-amber)">${o.status}</span>
+				</td>
+			</tr>
+			`).join('');
+
+			const consoleBox = document.getElementById('consoleLog');
+			consoleBox.innerHTML = data.logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+			consoleBox.scrollTop = consoleBox.scrollHeight;
+
+			} catch (e) {
+			// Сервер оффлайн
+			}
+			}
+
+			async function runBackendTests() {
+			try {
+			const res = await fetch(`${API_URL}/tests/run`, { method: 'POST' });
+			const data = await res.json();
+			alert(`[C# Engine] ${data.message}`);
+			updateDashboardFromApi();
+			} catch (e) {
+			alert("Помилка запуску C# тестування!");
+			}
+			}
+
+			async function adminSearchApi() {
+			const query = document.getElementById('adminSearchInput').value.trim();
+			if (!query) return;
+
+			try {
+			const res = await fetch(`${API_URL}/orders/search?query=${encodeURIComponent(query)}`);
+			const data = await res.json();
+			document.getElementById('searchResult').innerHTML = data.length
+			? `Знайдено у C# історії: <strong>${data.length}</strong> замовлень.`
+			: "Нічого не знайдено в C# базі.";
+			} catch (e) {
+			alert("Помилка пошуку!");
+			}
+			}
+
+			async function resetSystemApi() {
+			if (confirm("Обнулити стан C# бэкенда?")) {
+			await fetch(`${API_URL}/system/reset`, { method: 'POST' });
+			updateDashboardFromApi();
+			}
+			}
+
+			function initGraph() {
+			const nodes = new vis.DataSet([
+			{ id: 1, label: 'Еспресо', color: '#0284c7', font: { color: '#fff' } },
+			{ id: 2, label: 'Лате', color: '#0284c7', font: { color: '#fff' } },
+			{ id: 3, label: 'Круасан', color: '#f59e0b', font: { color: '#fff' } },
+			{ id: 4, label: 'Печиво', color: '#f59e0b', font: { color: '#fff' } },
+			{ id: 5, label: 'Кава + Круасан (СЕТ)', color: '#a855f7', font: { color: '#fff' } }
+			]);
+
+			const edges = new vis.DataSet([
+			{ from: 1, to: 3, label: 'Рекомендація', color: { color: '#38bdf8' } },
+			{ from: 2, to: 4, label: 'Рекомендація', color: { color: '#38bdf8' } },
+			{ from: 1, to: 5, label: 'Входить у СЕТ', color: { color: '#22c55e' } },
+			{ from: 3, to: 5, label: 'Входить у СЕТ', color: { color: '#22c55e' } }
+			]);
+
+			const container = document.getElementById('graphContainer');
+			const data = { nodes: nodes, edges: edges };
+			const options = {
+			physics: { enabled: true },
+			edges: { font: { align: 'top', color: '#94a3b8', strokeWidth: 0 } }
+			};
+			networkGraph = new vis.Network(container, data, options);
+			}
+		</script>
+	</body>
+</html>
