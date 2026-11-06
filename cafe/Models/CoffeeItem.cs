@@ -6,7 +6,7 @@ namespace CafeSimulation.Models
     {
         Super,
         SuperPuper,
-        Mega
+        Mega 
     }
     public class CoffeeItem : MenuItem
     {
