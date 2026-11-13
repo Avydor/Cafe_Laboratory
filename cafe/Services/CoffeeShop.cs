@@ -38,7 +38,7 @@ namespace cafe.Services
         public bool HasEdge(string item1, string item2) => _adjacencyList.ContainsKey(item1) && _adjacencyList[item1].Contains(item2);
     }
 
-    public class CoffeeShop
+    public class CoffeeShop : ICoffeeShopService
     {
         public List<MenuItem> Menu { get; private set; } = new List<MenuItem>();
         public Queue<Order> OrderQueue { get; private set; } = new Queue<Order>();

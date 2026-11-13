@@ -18,13 +18,15 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddSingleton<CoffeeShop>();
+// Реєструємо сервіс через інтерфейс у DI контейнері
+builder.Services.AddSingleton<ICoffeeShopService, CoffeeShop>();
 
 var app = builder.Build();
+
 app.UseCors("AllowAll");
 
-// 1. Вход / Авторизация с установкой начального баланса и проверкой админа
-app.MapPost("/api/auth/login", (CoffeeShop shop, LoginRequest req) =>
+// 1. Вхід / Авторизація з установкой балансу та перевіркою адміна
+app.MapPost("/api/auth/login", (ICoffeeShopService shop, LoginRequest req) =>
 {
     var adminNames = new[] { "Admin", "admin", "Дмитро Кудрявцев", "Іван", "Иван" };
     bool isAdmin = adminNames.Contains(req.CustomerName.Trim(), StringComparer.OrdinalIgnoreCase);
@@ -41,8 +43,8 @@ app.MapPost("/api/auth/login", (CoffeeShop shop, LoginRequest req) =>
     });
 });
 
-// 2. Пополнение баланса
-app.MapPost("/api/user/topup", (CoffeeShop shop, TopUpRequest req) =>
+// 2. Поповнення баланса
+app.MapPost("/api/user/topup", (ICoffeeShopService shop, TopUpRequest req) =>
 {
     if (req.Amount <= 0)
     {
@@ -58,8 +60,8 @@ app.MapPost("/api/user/topup", (CoffeeShop shop, TopUpRequest req) =>
     });
 });
 
-// 3. Меню и Граф рекомендаций
-app.MapGet("/api/menu", (CoffeeShop shop) =>
+// 3. Меню і Граф рекомендацій
+app.MapGet("/api/menu", (ICoffeeShopService shop) =>
 {
     var menuWithRecs = shop.Menu.Select(item => new
     {
@@ -72,8 +74,8 @@ app.MapGet("/api/menu", (CoffeeShop shop) =>
     return Results.Ok(menuWithRecs);
 });
 
-// 4. Статус кассы, баланс, очередь и логи
-app.MapGet("/api/status", (CoffeeShop shop) =>
+// 4. Статус каси, баланс, черга та логи
+app.MapGet("/api/status", (ICoffeeShopService shop) =>
 {
     return Results.Ok(new
     {
@@ -93,8 +95,8 @@ app.MapGet("/api/status", (CoffeeShop shop) =>
     });
 });
 
-// 5. Создание заказа
-app.MapPost("/api/orders", (CoffeeShop shop, CreateOrderRequest req) =>
+// 5. Створення замовлення
+app.MapPost("/api/orders", (ICoffeeShopService shop, CreateOrderRequest req) =>
 {
     if (shop.CreateOrder(req.CustomerName, req.MenuItemId, out string error))
     {
@@ -103,8 +105,8 @@ app.MapPost("/api/orders", (CoffeeShop shop, CreateOrderRequest req) =>
     return Results.BadRequest(new { success = false, message = error });
 });
 
-// 6. Обработка заказа из очереди (FIFO)
-app.MapPost("/api/orders/process", (CoffeeShop shop) =>
+// 6. Обробка замовлення з черги(FIFO)
+app.MapPost("/api/orders/process", (ICoffeeShopService shop) =>
 {
     var processed = shop.ProcessNextOrder();
     if (processed != null)
@@ -122,8 +124,8 @@ app.MapPost("/api/orders/process", (CoffeeShop shop) =>
     return Results.BadRequest(new { success = false, message = "Черга C# порожня!" });
 });
 
-// 7. Поиск заказов (Админка)
-app.MapGet("/api/orders/search", (CoffeeShop shop, string query) =>
+// 7. Пошук замовлень(Адмінка)
+app.MapGet("/api/orders/search", (ICoffeeShopService shop, string query) =>
 {
     if (string.IsNullOrWhiteSpace(query)) return Results.Ok(new object[0]);
     var results = shop.OrderHistory
@@ -133,15 +135,15 @@ app.MapGet("/api/orders/search", (CoffeeShop shop, string query) =>
     return Results.Ok(results);
 });
 
-// 8. Авто-тесты
-app.MapPost("/api/tests/run", (CoffeeShop shop) =>
+// 8. Авто-тести
+app.MapPost("/api/tests/run", (ICoffeeShopService shop) =>
 {
     shop.RunTests();
     return Results.Ok(new { success = true, message = "Усі C# авто-тести пройдено!" });
 });
 
-// 9. Сброс кассы (Админка)
-app.MapPost("/api/system/reset", (CoffeeShop shop) =>
+// 9. Зброс каси (Адмінка)
+app.MapPost("/api/system/reset", (ICoffeeShopService shop) =>
 {
     shop.ResetState();
     return Results.Ok(new { success = true });
