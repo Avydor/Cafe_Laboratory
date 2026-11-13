@@ -1,7 +1,8 @@
-﻿using System;
+﻿using cafe.Services;
+using CafeSimulation.Models; 
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using CafeSimulation.Models; 
 
 namespace CafeSimulation.Services
 {
